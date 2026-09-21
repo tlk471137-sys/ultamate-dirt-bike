@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Motocross Trials</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background: #0b0f19; color: #fff;
+            font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;
+        }
+        #gameContainer { position: relative; box-shadow: 0 15px 50px rgba(0,0,0,0.8); border-radius: 12px; overflow: hidden; }
+        canvas { display: block; background: linear-gradient(to bottom, #74d2ff, #bbf2ff); }
+        
+        /* UI Layers */
+        .hud { position: absolute; top: 15px; left: 15px; font-weight: 800; font-size: 16px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-family: monospace; }
+        .hud span { color: #ffd700; }
+        
+        #menuOverlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 15, 25, 0.96); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10; overflow-y: auto; padding: 20px 0;
+        }
+        h1 { font-size: 38px; margin: 0 0 5px 0; color: #ff5500; text-transform: uppercase; letter-spacing: 3px; font-style: italic; text-shadow: 0 0 10px rgba(255,85,0,0.3); }
+        .subtitle { font-size: 13px; color: #64748b; margin-bottom: 15px; }
+        
+        .panel-container { display: flex; gap: 20px; margin-bottom: 20px; width: 90%; max-width: 800px; }
+        .panel { background: #111827; padding: 15px; border-radius: 10px; border: 1px solid #1f2937; flex: 1; text-align: center; }
+        .panel h3 { margin-top: 0; margin-bottom: 12px; border-bottom: 2px solid #1f2937; padding-bottom: 6px; color: #38bdf8; font-size: 16px; text-transform: uppercase; }
+        
+        .lvl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        
+        .btn {
+            background: #ff5500; border: none; color: white; padding: 8px 14px;
+            font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer;
+            transition: 0.15s ease; text-transform: uppercase; width: 100%; box-sizing: border-box;
+        }
+        .btn:hover { background: #ff7733; transform: translateY(-1px); }
+        .btn.secondary { background: #374151; }
+        .btn.secondary:hover { background: #4b5563; }
+        .btn.active { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.4); }
+        
+        .shop-item {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #030712; padding: 8px 12px; margin: 6px 0; border-radius: 6px; border: 1px solid #1f2937;
+        }
+        .item-info { text-align: left; }
+        .item-name { font-weight: bold; font-size: 13px; }
+        .item-cost { font-size: 11px; color: #eab308; }
+        
+        #instructions { margin-top: 15px; text-align: center; color: #4b5563; font-size: 13px; }
+        .key { background: #1f2937; color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <!-- HUD Layer -->
+    <div class="hud" id="hudDisplay" style="display:none;">
+        STAGE: <span id="hudLvl">1</span> | 
+        COINS: <span id="hudCoins">0</span> | 
+        SPEED UPGRADES: <span id="hudEng">0</span> | 
+        TIRE UPGRADES: <span id="hudTire">0</span> | 
+        AIR: <span id="hudAir">0.0</span>s
+    </div>
+
+    <!-- Main Menu & Garage Shop -->
+    <div id="menuOverlay">
+        <h1>Ultimate Motocross Trials</h1>
+        <div class="subtitle">Press <span class="key">ESC</span> during a run to pause & return here</div>
+        
+        <div style="font-size: 22px; font-weight: bold; margin-bottom: 15px; color: #eab308; font-family: monospace;">
+            WALLET: <span id="menuWallet">0</span> COINS 🪙
+        </div>
+
+        <div class="panel-container">
+            <!-- Level Selector (6 Levels) -->
+            <div class="panel">
+                <h3>Select Track</h3>
+                <div class="lvl-grid">
+                    <button class="btn btn-lvl active" onclick="selectLevel(1)">Lv 1: Hills</button>
+                    <button class="btn btn-lvl" onclick="selectLevel(2)">Lv 2: Peaks</button>
+                    <button class="btn btn-lvl" onclick="selectLevel(3)">Lv 3: Desert</button>
+                    <button class="btn btn-lvl" onclick="selectLevel(4)">Lv 4: Volcano</button>
+                    <button class="btn btn-lvl" onclick="selectLevel(5)">Lv 5: Arctic</button>
+                    <button class="btn btn-lvl" onclick="selectLevel(6)">Lv 6: Cyber</button>
+                </div>
+            </div>
+            
+            <!-- Customization & Upgrades -->
+            <div class="panel">
+                <h3>Bike Upgrades & Garage</h3>
+                
+                <!-- Performance Tuning -->
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name" style="color: #60a5fa;">Engine Performance</div>
+                        <div class="item-cost" id="engineCostText">Upgrade: 10 Coins</div>
+                    </div>
+                    <button class="btn btn-sm" id="btnBuyEngine" onclick="upgradePerformance('engine')" style="width: auto; padding: 6px 12px;">Tune</button>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name" style="color: #34d399;">Traction Tires</div>
+                        <div class="item-cost" id="tireCostText">Upgrade: 10 Coins</div>
+                    </div>
+                    <button class="btn btn-sm" id="btnBuyTire" onclick="upgradePerformance('tire')" style="width: auto; padding: 6px 12px;">Grip</button>
+                </div>
+
+                <!-- Cosmetic Skins -->
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name" style="color:#ff5500">Factory Orange</div>
+                        <div class="item-cost">Default</div>
+                    </div>
+                    <button class="btn btn-sm btn-shop" id="shopBtn-0" onclick="buyOrEquip(0)" style="width: auto; padding: 6px 12px;">Equip</button>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name" style="color:#00f3ff">Kawasaki Teal</div>
+                        <div class="item-cost">Cost: 20 Coins</div>
+                    </div>
+                    <button class="btn btn-sm btn-shop secondary" id="shopBtn-1" onclick="buyOrEquip(1)" style="width: auto; padding: 6px 12px;">Buy</button>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name" style="color:#e11d48">Monster Red</div>
+                        <div class="item-cost">Cost: 40 Coins</div>
+                    </div>
+                    <button class="btn btn-sm btn-shop secondary" id="shopBtn-2" onclick="buyOrEquip(2)" style="width: auto; padding: 6px 12px;">Buy</button>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" style="font-size: 18px; padding: 12px 50px; width: auto;" onclick="startGame()">Launch Ride 🏁</button>
+    </div>
+
+    <canvas id="gameCanvas" width="850" height="480"></canvas>
+</div>
+
+<div id="instructions">
+    <strong>Riding Controls:</strong> <span class="key">W</span> / <span class="key">▲</span> Throttle &nbsp;|&nbsp; <span class="key">S</span> / <span class="key">▼</span> Brake/Reverse &nbsp;|&nbsp; <span class="key">A</span> / <span class="key">◀</span> Lean Back &nbsp;|&nbsp; <span class="key">D</span> / <span class="key">▶</span> Lean Forward &nbsp;|&nbsp; <span class="key">R</span> Reset Loop &nbsp;|&nbsp; <span class="key">ESC</span> Garage Menu
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game Core States
+let inMenu = true;
+let gameOver = false;
+let levelCleared = false;
+let currentLevel = 1;
+let coinsWallet = 0;
+let sessionCoins = 0;
+let airTime = 0;
+
+// Mechanical Stats System
+let engineLevel = 0; 
+let tireLevel = 0;
+const maxUpgrade = 5;
+
+// Aesthetic Skins Inventory
+const skins = [
+    { name: 'Factory Orange', color: '#ff5500', secondaryColor: '#ffffff', cost: 0, owned: true },
+    { name: 'Kawasaki Teal', color: '#00f3ff', secondaryColor: '#111827', cost: 20, owned: false },
+    { name: 'Monster Red', color: '#e11d48', secondaryColor: '#fbbf24', cost: 40, owned: false }
+];
+let activeSkinIndex = 0;
+
+// Topography Data Setup
+let terrainPoints = [];
+const terrainStep = 25;
+const totalWidth = 15000; // Ultra long map arrays
+
+function generateTrack(level) {
+    terrainPoints = [];
+    let baseHeight = 360;
+    
+    // Dynamically adjust sky backgrounds
+    if(level === 1) canvas.style.background = "linear-gradient(to bottom, #bae6fd, #e0f2fe)";
+    if(level === 2) canvas.style.background = "linear-gradient(to bottom, #334155, #94a3b8)";
+    if(level === 3) canvas.style.background = "linear-gradient(to bottom, #fdba74, #fef3c7)";
+    if(level === 4) canvas.style.background = "linear-gradient(to bottom, #1c1917, #78716c)";
+    if(level === 5) canvas.style.background = "linear-gradient(to bottom, #e2e8f0, #ffffff)";
+    if(level === 6) canvas.style.background = "linear-gradient(to bottom, #030712, #1e1b4b)";
+
+    for (let x = 0; x <= totalWidth; x += terrainStep) {
+        let noise = 0;
+        
+        switch(level) {
+            case 1: // Green Hills
+                noise = Math.sin(x * 0.004) * 50 + Math.sin(x * 0.02) * 12;
+                if (x > 1400 && x < 1800) noise -= Math.sin((x-1400)*Math.PI/400)*90; 
+                if (x > 5000 && x < 5600) noise -= Math.sin((x-5000)*Math.PI/600)*120;
+                if (x > 9000 && x < 9400) noise -= Math.sin((x-9000)*Math.PI/400)*80;
+                break;
+            case 2: // Rocky Peaks (Jagged & Steep)
+                noise = Math.sin(x * 0.007) * 85 + Math.cos(x * 0.015) * 30;
+                if ((x % 400) < 120) noise += 20; 
+                if (x > 3000 && x < 3500) noise -= 160; 
+                break;
+            case 3: // Desert Dunes (Large rolling slopes)
+                noise = Math.sin(x * 0.002) * 110 + Math.sin(x * 0.009) * 25;
+                if (x > 2500 && x < 3500) noise -= Math.sin((x-2500)*Math.PI/1000)*240; 
+                if (x > 8000 && x < 8800) noise -= Math.sin((x-8000)*Math.PI/800)*170;
+                break;
+            case 4: // Volcanic Crust (Violent sudden vertical drops)
+                noise = Math.sin(x * 0.005) * 90 + Math.cos(x * 0.03) * 35;
+                if (x > 2000 && x < 2300) noise += 110; 
+                if (x > 6000 && x < 6500) noise -= Math.sin((x-6000)*Math.PI/500)*200;
+                break;
+            case 5: // Arctic Glaciers (Long flat strips then sudden spikes)
+                noise = Math.sin(x * 0.001) * 30; 
+                if (x % 1500 > 1100 && x % 1500 < 1400) noise -= 130; 
+                if (x > 4000 && x < 4800) noise -= Math.sin((x-4000)*Math.PI/800)*180;
+                break;
+            case 6: // Neon Cyber (Extreme experimental step geometry)
+                noise = Math.floor(Math.sin(x * 0.003) * 4) * 35;
+                if (x > 3000 && x < 3400) noise -= 220;
+                if (x > 8000 && x < 8600) noise -= (x - 8000) * 0.4;
+                break;
+        }
+        terrainPoints.push({ x: x, y: baseHeight + noise });
+    }
+}
+
+function getTerrainHeight(x) {
+    if (x <= 0) return terrainPoints[0].y;
+    if (x >= totalWidth) return terrainPoints[terrainPoints.length - 1].y;
+    const idx = Math.floor(x / terrainStep);
+    const t = (x % terrainStep) / terrainStep;
+    const p1 = terrainPoints[idx];
+    const p2 = terrainPoints[idx + 1] || p1;
+    return p1.y + (p2.y - p1.y) * t;
+}
+
+// Global Coins Vectors Array
+let coinsList = [];
+function populateCoins() {
+    coinsList = [];
+    for (let x = 500; x < totalWidth - 400; x += 260) {
+        let terrainY = getTerrainHeight(x);
+        let offset = 45;
+        // Float coins extra high inside mountain valleys or jump zones
+        if (Math.sin(x * 0.004) < -0.4) offset = 110;
+        coinsList.push({ x: x, y: terrainY - offset, collected: false });
+    }
+}
+
+// Physics Loop Parameters
+const gravity = 0.23;
+const bike = {
+    x: 120, y: 100, vx: 0, vy: 0, angle: 0, angularVelocity: 0,
+    frontOffset: 24, backOffset: -24, radius: 13,
+    reset: function() {
+        this.x = 120;
+        this.y = getTerrainHeight(120) - 60;
+        this.vx = 0; this.vy = 0; this.angle = 0; this.angularVelocity = 0;
+        gameOver = false; levelCleared = false; airTime = 0; sessionCoins = 0;
+        updateHUD();
+    }
+};
+
+const keys = {};
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        toggleMenu();
+        return;
+    }
+    keys[e.key.toLowerCase()] = true;
+    keys[e.key] = true;
+    if (e.key.toLowerCase() === 'r' && !inMenu) bike.reset();
+});
+window.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
+    keys[e.key] = false;
+});
+
+function selectLevel(lvl) {
+    currentLevel = lvl;
+    document.querySelectorAll('.btn-lvl').forEach((b, idx) => {
+        b.classList.toggle('active', idx + 1 === lvl);
+    });
+}
+
+function getUpgradeCost(currentLvl) {
+    return (currentLvl + 1) * 12;
+}
+
+function upgradePerformance(type) {
+    if (type === 'engine') {
+        if (engineLevel >= maxUpgrade) return;
+        let cost = getUpgradeCost(engineLevel);
+        if (coinsWallet >= cost) {
+            coinsWallet -= cost;
+            engineLevel++;
+        } else { alert("Insufficient coins for Engine Tuning!"); }
+    } else if (type === 'tire') {
+        if (tireLevel >= maxUpgrade) return;
+        let cost = getUpgradeCost(tireLevel);
+        if (coinsWallet >= cost) {
+            coinsWallet -= cost;
+            tireLevel++;
+        } else { alert("Insufficient coins for Traction Grid!"); }
+    }
+    updateShopUI();
+}
+
+function buyOrEquip(idx) {
+    const skin = skins[idx];
+    if (skin.owned) {
+        activeSkinIndex = idx;
+    } else if (coinsWallet >= skin.cost) {
+        coinsWallet -= skin.cost;
+        skin.owned = true;
+        activeSkinIndex = idx;
+    } else {
+        alert("Collect more coins on tracks to buy this motocross model kit!");
+    }
+    updateShopUI();
+}
+
+function updateShopUI() {
+    document.getElementById('menuWallet').textContent = coinsWallet;
+    
+    // Performance pricing indicators update
+    if (engineLevel >= maxUpgrade) {
+        document.getElementById('engineCostText').textContent = "MAX TUNED";
+        document.getElementById('btnBuyEngine').style.display = 'none';
+    } else {
+        document.getElementById('engineCostText').textContent = `Cost: ${getUpgradeCost(engineLevel)} Coins (Lvl ${engineLevel})`;
+    }
+    
+    if (tireLevel >= maxUpgrade) {
+        document.getElementById('tireCostText').textContent = "MAX GRIP";
+        document.getElementById('btnBuyTire').style.display = 'none';
+    } else {
+        document.getElementById('tireCostText').textContent = `Cost: ${getUpgradeCost(tireLevel)} Coins (Lvl ${tireLevel})`;
+    }
+
+    // Cosmetics lists interface updates
+    skins.forEach((skin, idx) => {
+        const btn = document.getElementById(`shopBtn-${idx}`);
+        if (skin.owned) {
+            if (activeSkinIndex === idx) {
+                btn.textContent = "Active"; btn.className = "btn btn-sm btn-shop active";
+            } else {
+                btn.textContent = "Equip"; btn.className = "btn btn-sm btn-shop secondary";
+            }
+        } else {
+            btn.textContent = "Unlock"; btn.className = "btn btn-sm btn-shop";
+        }
+    });
+}
+
+function toggleMenu() {
+    inMenu = !inMenu;
+    document.getElementById('menuOverlay').style.display = inMenu ? 'flex' : 'none';
+    document.getElementById('hudDisplay').style.display = inMenu ? 'none' : 'block';
+    if (inMenu) updateShopUI();
+}
+
+function startGame() {
+    generateTrack(currentLevel);
+    populateCoins();
+    bike.reset();
+    inMenu = false;
+    document.getElementById('menuOverlay').style.display = 'none';
+    document.getElementById('hudDisplay').style.display = 'block';
+}
+
+function updateHUD() {
+    document.getElementById('hudLvl').textContent = currentLevel;
+    document.getElementById('hudCoins').textContent = coinsWallet + sessionCoins;
+    document.getElementById('hudEng').textContent = engineLevel;
+    document.getElementById('hudTire').textContent = tireLevel;
+    document.getElementById('hudAir').textContent = airTime.toFixed(1);
+}
+
+function update() {
+    if (inMenu || gameOver || levelCleared) return;
+
+    bike.vy += gravity;
+
+    // Apply incremental engine performance multiplier calculations
+    let thrustPower = 0.16 + (engineLevel * 0.02);
+    let gripTraction = 0.14 + (tireLevel * 0.025);
+
+    // Throttle checks
+    if (keys['w'] || keys['ArrowUp']) {
+        bike.vx += Math.cos(bike.angle) * thrustPower;
+        bike.vy += Math.sin(bike.angle) * thrustPower;
+    }
+    if (keys['s'] || keys['ArrowDown']) {
+        bike.vx *= 0.93; // Braking coefficient
+    }
+    
+    // Angular lean weights mechanics
+    if (keys['a'] || keys['ArrowLeft']) bike.angularVelocity -= 0.0075;
+    if (keys['d'] || keys['ArrowRight']) bike.angularVelocity += 0.0075;
+
+    bike.x += bike.vx;
+    bike.y += bike.vy;
+    bike.angle += bike.angularVelocity;
+
+    bike.vx *= 0.985; bike.vy *= 0.985; bike.angularVelocity *= 0.92;
+
+    // Isolate exact front and back tyre coordinates
+    let cosA = Math.cos(bike.angle);
+    let sinA = Math.sin(bike.angle);
+    let fX = bike.x + cosA * bike.frontOffset;
+    let fY = bike.y + sinA * bike.frontOffset + bike.radius;
+    let bX = bike.x + cosA * bike.backOffset;
+    let bY = bike.y + sinA * bike.backOffset + bike.radius;
+
+    let fGroundY = getTerrainHeight(fX);
+    let bGroundY = getTerrainHeight(bX);
+
+    let fGrounded = fY >= fGroundY;
+    let bGrounded = bY >= bGroundY;
+
+    if (fGrounded) {
+        bike.y -= (fY - fGroundY) * 0.5;
+        bike.vy *= 0.3;
+        bike.angularVelocity -= (fY - fGroundY) * 0.0035;
+    }
+    if (bGrounded) {
+        bike.y -= (bY - bGroundY) * 0.5;
+        bike.vy *= 0.3;
+        bike.angularVelocity += (bY - bGroundY) * 0.0035;
+        if (keys['w'] || keys['ArrowUp']) bike.vx += gripTraction; 
+    }
+
+    // Process airtime variables
+    if (!fGrounded && !bGrounded) {
+        airTime += 1/60;
+    } else {
+        airTime = 0;
+    }
+
+    // Collectibles sweep checking loop
+    coinsList.forEach(c => {
+        if (!c.collected && Math.hypot(bike.x - c.x, bike.y - c.y) < 35) {
+            c.collected = true;
+            sessionCoins++;
+        }
+    });
+
+    // Check crash parameters
+    let slopeAngle = Math.atan2(fGroundY - bGroundY, fX - bX);
+    let relativeAngle = (bike.angle - slopeAngle) % (Math.PI * 2);
+    if (relativeAngle > Math.PI) relativeAngle -= Math.PI * 2;
+    if (relativeAngle < -Math.PI) relativeAngle += Math.PI * 2;
+
+    if ((fGrounded || bGrounded) && Math.abs(relativeAngle) > Math.PI * 0.58) {
+        gameOver = true;
+        coinsWallet += sessionCoins; 
+        sessionCoins = 0;
+    }
+
+    // Victory gate condition boundary
+    if (bike.x >= totalWidth - 200) {
+        levelCleared = true;
+        coinsWallet += sessionCoins;
+        sessionCoins = 0;
+    }
+
+    if (bike.x < 40) bike.x = 40;
+    updateHUD();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    let camX = bike.x - 220;
+    if (camX < 0) camX = 0;
+    if (camX > totalWidth - canvas.width) camX = totalWidth - canvas.width;
+    ctx.translate(-camX, 0);
+
+    // Draw Coins
+    ctx.fillStyle = '#f59e0b';
+    ctx.strokeStyle = '#fff3c7';
+    ctx.lineWidth = 1.5;
+    coinsList.forEach(c => {
+        if (!c.collected && c.x > camX - 50 && c.x < camX + canvas.width + 50) {
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Coin details
+            ctx.fillStyle = '#d97706';
+            ctx.font = 'bold 9px monospace';
+            ctx.fillText("$", c.x - 3, c.y + 3);
+            ctx.fillStyle = '#f59e0b';
+        }
+    });
+
+    // Draw level-specific color meshes
+    let groundColor = '#4b5320'; // Default army/mud green mud
+    let crustColor = '#3b7a57';
+    
+    if(currentLevel === 2) { groundColor = '#334155'; crustColor = '#475569'; }
+    if(currentLevel === 3) { groundColor = '#ca8a04'; crustColor = '#facc15'; }
+    if(currentLevel === 4) { groundColor = '#1c1917'; crustColor = '#dc2626'; }
+    if(currentLevel === 5) { groundColor = '#94a3b8'; crustColor = '#f1f5f9'; }
+    if(currentLevel === 6) { groundColor = '#0f172a'; crustColor = '#d946ef'; }
+
+    ctx.fillStyle = groundColor;
+    ctx.strokeStyle = crustColor;
+    ctx.lineWidth = 6;
+    
+    ctx.beginPath();
+    ctx.moveTo(camX - 50, canvas.height);
+    let startIdx = Math.max(0, Math.floor((camX - 50) / terrainStep));
+    let endIdx = Math.min(terrainPoints.length - 1, Math.ceil((camX + canvas.width + 50) / terrainStep));
+    
+    for (let i = startIdx; i <= endIdx; i++) {
+        ctx.lineTo(terrainPoints[i].x, terrainPoints[i].y);
+    }
+    ctx.lineTo(terrainPoints[endIdx].x, canvas.height);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Checkered Finish Line Banner Structure
+    let goalX = totalWidth - 200;
+    let goalY = getTerrainHeight(goalX);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(goalX, goalY - 120, 6, 120);
+    // Draw checkered flag mesh
+    ctx.fillStyle = '#000000';
+    for(let r=0; r<4; r++) {
+        for(let c=0; c<5; c++) {
+            if((r+c)%2 === 0) ctx.fillStyle = '#000000';
+            else ctx.fillStyle = '#ffffff';
+            ctx.fillRect(goalX + 6 + (c*7), goalY - 120 + (r*6), 7, 6);
+        }
+    }
+
+    // Geometry parameters tracking
+    let coreColor = skins[activeSkinIndex].color;
+    let secColor = skins[activeSkinIndex].secondaryColor;
+    let cosA = Math.cos(bike.angle);
+    let sinA = Math.sin(bike.angle);
+
+    // DRAW THE DIRT BIKE (Advanced Motocross Silhouette Frame Layout)
+    ctx.save();
+    ctx.translate(bike.x, bike.y);
+    ctx.rotate(bike.angle);
+
+    // 1. Rear Exhaust Tailpipe structure
+    ctx.strokeStyle = '#6b7280';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-12, -8);
+    ctx.lineTo(-24, -14);
+    ctx.stroke();
+    // Tip
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(-27, -16, 4, 4);
+
+    // 2. Main Mechanical Engine block base block
+    ctx.fillStyle = '#4b5563';
+    ctx.fillRect(-8, -8, 14, 12);
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-8, -8, 14, 12);
+
+    // 3. Heavy Duty Front Fork Bars
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(4, -16);
+    ctx.lineTo(bike.frontOffset, bike.radius - 2); // Connect close to tyre axle center
+    ctx.stroke();
+
+    // 4. Rear Metal Swingarm assembly
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(-4, 0);
+    ctx.lineTo(bike.backOffset, bike.radius - 2);
+    ctx.stroke();
+
+    // 5. Factory Custom Colored Body Plastics Panel kit
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.moveTo(-20, -10); // Rear fender tip
+    ctx.lineTo(-4, -14);  // Mid tank valley
+    ctx.lineTo(12, -16);  // Front shroud cowl
+    ctx.lineTo(6, -6);    // Engine housing connection
+    ctx.lineTo(-10, -4);  // Mid bottom edge
+    ctx.closePath();
+    ctx.fill();
+
+    // Secondary trim stickers lines
+    ctx.fillStyle = secColor;
+    ctx.beginPath();
+    ctx.moveTo(-4, -14);
+    ctx.lineTo(8, -15);
+    ctx.lineTo(4, -9);
+    ctx.closePath();
+    ctx.fill();
+
+    // 6. High rise handlebars stem
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(10, -16);
+    ctx.lineTo(12, -28); // Bars tower elevation
+    ctx.lineTo(6, -27);  // Hand grips position back
+    ctx.stroke();
+
+    // 7. Dirt Rider Dummy Model Positioning
+    ctx.fillStyle = '#1f2937'; // Heavy padded protective leathers
+    ctx.fillRect(-6, -28, 10, 15); // Torso lines
+    
+    // Rider Boots reaching pegs
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-2, -15);
+    ctx.lineTo(0, -4);
+    ctx.stroke();
+
+    // Motocross Helmet + Front Visor mask peak
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.arc(1, -34, 6, 0, Math.PI * 2);
+    ctx.fill();
+    // Goggles / Face Shield window masking
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(2, -37, 5, 4);
+    // Helmet Sun Visor spike beak
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.moveTo(3, -37);
+    ctx.lineTo(11, -36);
+    ctx.lineTo(4, -33);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+
+    // DRAW THE DIRT BIKE KNOBBY TREAD TIRES
+    drawKnobbyTire(bike.x + cosA * bike.frontOffset, bike.y + sinA * bike.frontOffset, bike.radius, bike.x);
+    drawKnobbyTire(bike.x + cosA * bike.backOffset, bike.y + sinA * bike.backOffset, bike.radius, bike.x);
+
+    ctx.restore();
+
+    // State overlays rendering text alert boxes
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(3,7,18,0.85)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 30px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText("CRASHED & WRECKED!", canvas.width/2, canvas.height/2 - 15);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '15px sans-serif';
+        ctx.fillText("Press 'R' to Respawn, or click 'ESC' to buy upgrades in the Garage Menu", canvas.width/2, canvas.height/2 + 25);
+    }
+    
+    if (levelCleared) {
+        ctx.fillStyle = 'rgba(3,7,18,0.85)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 30px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText("STAGE COMPLETE!", canvas.width/2, canvas.height/2 - 15);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '15px sans-serif';
+        ctx.fillText("Press 'ESC' to head back to the garage and choose your next track", canvas.width/2, canvas.height/2 + 25);
+    }
+}
+
+function drawKnobbyTire(x, y, r, rotationDist) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotationDist / r);
+
+    // Thick rugged tire rim profile outer boundary
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); 
+    ctx.arc(0, 0, r, 0, Math.PI * 2); 
+    ctx.stroke();
+
+    // Metallic alloy central hub rings
+    ctx.strokeStyle = '#6b7280';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); 
+    ctx.arc(0, 0, r - 4, 0, Math.PI * 2); 
+    ctx.stroke();
+
+    // Spoke patterns structural lines indicators
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+        ctx.rotate(Math.PI / 6);
+        ctx.beginPath();
+        ctx.moveTo(-(r-4), 0);
+        ctx.lineTo(r-4, 0);
+        ctx.stroke();
+    }
+    
+    // Knobby tread spikes protruding symmetrically out from tire circumferences
+    ctx.fillStyle = '#111827';
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+        ctx.save();
+        ctx.rotate(a);
+        ctx.fillRect(r - 1, -2, 3, 4); // Knobby block
+        ctx.restore();
+    }
+
+    ctx.restore();
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Initialization hooks launcher calls
+updateShopUI();
+generateTrack(1);
+loop();
+</script>
+
+</body>
+</html>
