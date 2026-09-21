@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xtreme Motocross Pro 20</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background: #070b12; color: #fff;
+            font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;
+        }
+        #gameContainer { position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.8); border-radius: 16px; overflow: hidden; }
+        canvas { display: block; background: #111827; }
+        
+        .hud { position: absolute; top: 15px; left: 15px; font-weight: 800; font-size: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.9); pointer-events: none; display: flex; gap: 20px; background: rgba(15,23,42,0.85); padding: 10px 18px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .hud span { color: #f59e0b; }
+        
+        #nitroContainer { position: absolute; top: 15px; right: 15px; background: rgba(15,23,42,0.85); padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); width: 140px; font-weight: bold; font-size: 13px; z-index: 5; }
+        #nitroBar { width: 100%; height: 12px; background: #374151; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        #nitroFill { width: 100%; height: 100%; background: linear-gradient(to right, #ef4444, #f59e0b); }
+
+        #stuntAlert { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: 900; color: #facc15; text-shadow: 0 0 12px rgba(250,204,21,0.9); font-family: monospace; pointer-events: none; opacity: 0; transition: opacity 0.1s ease; z-index: 5; }
+
+        #menuOverlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(7, 11, 18, 0.98); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10; padding: 25px; box-sizing: border-box;
+        }
+        h1 { font-size: 40px; margin: 0 0 4px 0; color: #f97316; text-transform: uppercase; letter-spacing: 3px; font-style: italic; text-shadow: 0 4px 10px rgba(249,115,22,0.3); }
+        .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+        
+        .panel-container { display: flex; gap: 20px; margin-bottom: 20px; width: 98%; height: 58%; }
+        .panel { background: #111827; padding: 18px; border-radius: 12px; border: 1px solid #1f2937; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .panel h3 { margin: 0 0 12px 0; border-bottom: 2px solid #1f2937; padding-bottom: 8px; color: #38bdf8; font-size: 16px; text-transform: uppercase; }
+        
+        .level-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; overflow-y: auto; padding-right: 4px; flex: 1; }
+        .lvl-btn { background: #1f2937; border: 1px solid #374151; color: #9ca3af; font-weight: bold; border-radius: 6px; padding: 12px 0; cursor: pointer; transition: 0.15s; }
+        .lvl-btn:hover { background: #374151; color: #fff; }
+        .lvl-btn.active { background: #f97316; color: #fff; border-color: #fb923c; box-shadow: 0 0 12px rgba(249,115,22,0.5); }
+
+        .shop-scroll { overflow-y: auto; flex: 1; padding-right: 4px; }
+        .shop-item { display: flex; align-items: center; justify-content: space-between; background: #070a12; padding: 10px 14px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #1f2937; }
+        .item-info { text-align: left; }
+        .item-name { font-weight: bold; font-size: 13px; }
+        .item-cost { font-size: 12px; color: #eab308; font-weight: bold; }
+        
+        .btn { background: #f97316; border: none; color: white; padding: 12px 45px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        .btn:hover { background: #fb923c; transform: translateY(-2px); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 4px; background: #38bdf8; border: none; color:#000; font-weight:bold; cursor:pointer; }
+        .btn-sm.secondary { background: #4b5563; color:#fff; }
+        .btn-sm.active { background: #10b981; color:#fff; }
+
+        #instructions { margin-top: 15px; text-align: center; color: #4b5563; font-size: 13px; }
+        .key { background: #1f2937; color: #d1d5db; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; border: 1px solid #374151; }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <div class="hud" id="hudDisplay" style="display:none;">
+        <div>Stage: <span id="hudLvl">1</span></div>
+        <div>Coins: <span id="hudCoins">0</span></div>
+        <div>Score: <span id="hudScore">0</span></div>
+        <div>Air: <span id="hudAir">0.0</span>s</div>
+    </div>
+
+    <div id="nitroContainer" style="display:none;">
+        <div>NITRO [SPACE]</div>
+        <div id="nitroBar"><div id="nitroFill"></div></div>
+    </div>
+    
+    <div id="stuntAlert">BACKFLIP COMBO!</div>
+
+    <div id="menuOverlay">
+        <h1>Xtreme Motocross Pro</h1>
+        <div class="subtitle">Press <span class="key">ESC</span> during the race to return to garage and tune specs</div>
+        
+        <div style="font-size: 22px; font-weight: 800; margin-bottom: 15px; color: #eab308; background: rgba(234,179,8,0.08); padding: 8px 24px; border-radius: 20px; border: 1px solid rgba(234,179,8,0.15);">
+            Wallet: <span id="menuWallet">0</span> Coins 💰
+        </div>
+
+        <div class="panel-container">
+            <div class="panel">
+                <h3>Select Campaign Stage</h3>
+                <div class="level-grid" id="levelGridContainer"></div>
+            </div>
+            
+            <div class="panel">
+                <h3>Tuning Matrix & Cosmetics</h3>
+                <div class="shop-scroll">
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name" style="color:#f97316">Factory Orange Kit</div><div class="item-cost">Owned</div></div>
+                        <button class="btn-sm" id="skinBtn-0" onclick="manageSkin(0)">Equip</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name" style="color:#22c55e">Kawasaki Lime Kit</div><div class="item-cost">Cost: 25 Coins</div></div>
+                        <button class="btn-sm secondary" id="skinBtn-1" onclick="manageSkin(1)">Buy</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name" style="color:#a855f7">Cyber Purple Kit</div><div class="item-cost">Cost: 50 Coins</div></div>
+                        <button class="btn-sm secondary" id="skinBtn-2" onclick="manageSkin(2)">Buy</button>
+                    </div>
+                    
+                    <div class="shop-item" style="border-top: 2px solid #1f2937; margin-top: 10px; padding-top: 10px;">
+                        <div class="item-info"><div class="item-name">Engine Performance (<span id="sLvlEng">1</span>/5)</div><div class="item-cost" id="cEng">Cost: 15 Coins</div></div>
+                        <button class="btn-sm" id="upEng" onclick="upgradeStat('engine')">Tune</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name">Traction Rear Tires (<span id="sLvlTire">1</span>/5)</div><div class="item-cost" id="cTire">Cost: 15 Coins</div></div>
+                        <button class="btn-sm" id="upTire" onclick="upgradeStat('tire')">Tune</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name">Suspension Dampers (<span id="sLvlSusp">1</span>/5)</div><div class="item-cost" id="cSusp">Cost: 15 Coins</div></div>
+                        <button class="btn-sm" id="upSusp" onclick="upgradeStat('suspension')">Tune</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name">Air Inertia Brackets (<span id="sLvlAir">1</span>/5)</div><div class="item-cost" id="cAir">Cost: 15 Coins</div></div>
+                        <button class="btn-sm" id="upAir" onclick="upgradeStat('air')">Tune</button>
+                    </div>
+                    <div class="shop-item">
+                        <div class="item-info"><div class="item-name">Nitro Boost Tank (<span id="sLvlNitro">1</span>/5)</div><div class="item-cost" id="cNitro">Cost: 20 Coins</div></div>
+                        <button class="btn-sm" id="upNitro" onclick="upgradeStat('nitro')">Tune</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" onclick="startGame()">Start Race 🏍️</button>
+    </div>
+
+    <canvas id="gameCanvas" width="900" height="490"></canvas>
+</div>
+
+<div id="instructions">
+    <strong>Controls:</strong> <span class="key">W</span> / <span class="key">▲</span> Throttle &nbsp;|&nbsp; <span class="key">S</span> / <span class="key">▼</span> Brake &nbsp;|&nbsp; <span class="key">A</span> / <span class="key">◀</span> Lean Back &nbsp;|&nbsp; <span class="key">D</span> / <span class="key">▶</span> Lean Forward &nbsp;|&nbsp; <span class="key">SPACEBAR</span> Nitro Boost &nbsp;|&nbsp; <span class="key">R</span> Reset &nbsp;|&nbsp; <span class="key">ESC</span> Pause Menu
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let inMenu = true;
+let gameOver = false;
+let levelCleared = false;
+let currentLevel = 1;
+let coinsWallet = 15; 
+let sessionCoins = 0;
+let score = 0;
+let airTime = 0;
+
+let absoluteRotationAccumulator = 0;
+let flipsCompletedInCurrentJump = 0;
+let airRotationCheckpoint = 0;
+let trickAlertTimer = 0;
+
+let currentNitroFuel = 100;
+let isNitroActive = false;
+
+let statsLevels = { engine: 1, tire: 1, suspension: 1, air: 1, nitro: 1 };
+
+const skins = [
+    { name: 'Factory Orange', color: '#f97316', cost: 0, owned: true },
+    { name: 'Kawasaki Lime', color: '#22c55e', cost: 25, owned: false },
+    { name: 'Cyber Purple', color: '#a855f7', cost: 50, owned: false }
+];
+let activeSkinIndex = 0;
+
+const gridContainer = document.getElementById('levelGridContainer');
+for(let i=1; i<=20; i++) {
+    const b = document.createElement('button');
+    b.className = "lvl-btn" + (i===1 ? " active" : "");
+    b.innerText = i; b.id = "lvlBtn-" + i;
+    b.onclick = () => selectLevel(i);
+    gridContainer.appendChild(b);
+}
+
+let terrainPoints = [];
+const terrainStep = 20;
+const totalWidth = 16000; 
+
+function generateTrack(lvl) {
+    terrainPoints = [];
+    let baseHeight = 380;
+    let freqMod = 0.002 + (lvl * 0.0003);
+    let ampMod = 50 + (lvl * 4.5);
+    
+    for (let x = 0; x <= totalWidth; x += terrainStep) {
+        let noise = Math.sin(x * freqMod) * ampMod;
+        noise += Math.cos(x * 0.007) * (ampMod * 0.35);
+        noise += Math.sin(x * 0.03) * (4 + (lvl * 0.3)); 
+
+        if (x > 1400 && x < 1800) noise -= Math.sin((x-1400)*Math.PI/400) * 130;
+        if (x > 4400 && x < 4900) noise -= Math.sin((x-4400)*Math.PI/500) * 170;
+        if (x > 8400 && x < 8900) noise -= Math.sin((x-8400)*Math.PI/500) * 160;
+        if (x > 12400 && x < 12800) noise -= Math.sin((x-12400)*Math.PI/400) * 200;
+
+        terrainPoints.push({ x: x, y: baseHeight + noise });
+    }
+}
+
+function getTerrainHeight(x) {
+    if (x <= 0) return terrainPoints.length ? terrainPoints[0].y : 380;
+    if (x >= totalWidth) return terrainPoints[terrainPoints.length - 1].y;
+    const idx = Math.floor(x / terrainStep);
+    const t = (x % terrainStep) / terrainStep;
+    const p1 = terrainPoints[idx];
+    const p2 = terrainPoints[idx + 1] || p1;
+    if (!p1) return 380;
+    return p1.y + (p2.y - p1.y) * t;
+}
+
+let coinsList = [];
+function populateCoins() {
+    coinsList = [];
+    for (let x = 450; x < totalWidth - 400; x += 280) {
+        let terrainY = getTerrainHeight(x);
+        let offset = 55;
+        if (x > 1450 && x < 1750) offset = 140;
+        if (x > 4500 && x < 4850) offset = 190;
+        if (x > 8500 && x < 8850) offset = 175;
+        if (x > 12450 && x < 12750) offset = 220;
+
+        coinsList.push({ x: x, y: terrainY - offset, collected: false });
+    }
+}
+
+const gravity = 0.23;
+const bike = {
+    x: 120, y: 100, vx: 0, vy: 0, angle: 0, angularVelocity: 0,
+    frontOffset: 24, backOffset: -24, radius: 13,
+    grounded: false,
+    reset: function() {
+        this.x = 120;
+        this.y = getTerrainHeight(120) - 60;
+        this.vx = 0; this.vy = 0; this.angle = 0; this.angularVelocity = 0;
+        this.grounded = false;
+        gameOver = false; levelCleared = false; airTime = 0; sessionCoins = 0; score = 0;
+        absoluteRotationAccumulator = 0; flipsCompletedInCurrentJump = 0;
+        currentNitroFuel = 60 + (statsLevels.nitro * 8);
+        document.getElementById('stuntAlert').style.opacity = "0";
+        updateHUD();
+    }
+};
+
+const keys = {};
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        toggleMenu();
+        return;
+    }
+    if (e.key === ' ') {
+        e.preventDefault();
+        keys['space'] = true;
+        return;
+    }
+    keys[e.key.toLowerCase()] = true;
+    keys[e.key] = true;
+    if (e.key.toLowerCase() === 'r' && !inMenu) bike.reset();
+});
+window.addEventListener('keyup', e => {
+    if (e.key === ' ') { keys['space'] = false; return; }
+    keys[e.key.toLowerCase()] = false;
+    keys[e.key] = false;
+});
+
+function selectLevel(lvl) {
+    currentLevel = lvl;
+    for(let i=1; i<=20; i++){
+        document.getElementById("lvlBtn-"+i).classList.toggle('active', i === lvl);
+    }
+}
+
+function updateShopUI() {
+    document.getElementById('menuWallet').textContent = coinsWallet;
+    skins.forEach((skin, idx) => {
+        const btn = document.getElementById(`skinBtn-${idx}`);
+        if (skin.owned) {
+            btn.textContent = (activeSkinIndex === idx) ? "Equipped" : "Equip";
+            btn.className = (activeSkinIndex === idx) ? "btn-sm active" : "btn-sm secondary";
+        } else {
+            btn.textContent = "Buy"; btn.className = "btn-sm";
+        }
+    });
+
+    const mapStats = ['engine', 'tire', 'suspension', 'air', 'nitro'];
+    mapStats.forEach(stat => {
+        let curLvl = statsLevels[stat];
+        let idLvl = (stat === 'engine') ? 'sLvlEng' : (stat === 'tire') ? 'sLvlTire' : (stat === 'suspension') ? 'sLvlSusp' : (stat === 'air') ? 'sLvlAir' : 'sLvlNitro';
+        let idCost = (stat === 'engine') ? 'cEng' : (stat === 'tire') ? 'cTire' : (stat === 'suspension') ? 'cSusp' : (stat === 'air') ? 'cAir' : 'cNitro';
+        
+        document.getElementById(idLvl).textContent = curLvl;
+        if(curLvl >= 5) {
+            document.getElementById(idCost).textContent = "MAX CAPACITY";
+        } else {
+            let nextCost = (stat === 'nitro') ? (curLvl * 20) : (curLvl * 15);
+            document.getElementById(idCost).textContent = `Cost: ${nextCost} Coins`;
+        }
+    });
+}
+
+function manageSkin(idx) {
+    const skin = skins[idx];
+    if (skin.owned) {
+        activeSkinIndex = idx;
+    } else if (coinsWallet >= skin.cost) {
+        coinsWallet -= skin.cost;
+        skin.owned = true;
+        activeSkinIndex = idx;
+    } else {
+        alert("Collect more coin items to buy this custom paint layout!");
+    }
+    updateShopUI();
+}
+
+function upgradeStat(type) {
+    let curLvl = statsLevels[type];
+    if(curLvl >= 5) return;
+    
+    let cost = (type === 'nitro') ? (curLvl * 20) : (curLvl * 15);
+    if(coinsWallet >= cost) {
+        coinsWallet -= cost;
+        statsLevels[type]++;
+        updateShopUI();
+    } else {
+        alert("Insufficient coin funds for this tuning modification!");
+    }
+}
+
+function toggleMenu() {
+    inMenu = !inMenu;
+    document.getElementById('menuOverlay').style.display = inMenu ? 'flex' : 'none';
+    document.getElementById('hudDisplay').style.display = inMenu ? 'none' : 'block';
+    document.getElementById('nitroContainer').style.display = inMenu ? 'none' : 'block';
+    if (inMenu) updateShopUI();
+}
+
+function startGame() {
+    generateTrack(currentLevel);
+    populateCoins();
+    bike.reset();
+    inMenu = false;
+    document.getElementById('menuOverlay').style.display = 'none';
+    document.getElementById('hudDisplay').style.display = 'block';
+    document.getElementById('nitroContainer').style.display = 'block';
+}
+
+function updateHUD() {
+    document.getElementById('hudLvl').textContent = currentLevel;
+    document.getElementById('hudCoins').textContent = coinsWallet + sessionCoins;
+    document.getElementById('hudScore').textContent = score;
+    document.getElementById('hudAir').textContent = airTime.toFixed(1);
+    
+    let maxFuel = 60 + (statsLevels.nitro * 8);
+    let perc = (currentNitroFuel / maxFuel) * 100;
+    document.getElementById('nitroFill').style.width = `${Math.max(0, Math.min(100, perc))}%`;
+}
+
+function update() {
+    if (inMenu || gameOver || levelCleared) return;
+
+    bike.vy += gravity;
+
+    let motorPower = 0.15 + (statsLevels.engine * 0.022);
+    let groundTraction = 0.12 + (statsLevels.tire * 0.022);
+    let compressionCushion = 0.55 - (statsLevels.suspension * 0.04); 
+    let airLeanSpeed = 0.007 + (statsLevels.air * 0.0015);
+    let maxNitro = 60 + (statsLevels.nitro * 8);
+
+    isNitroActive = false;
+    if (keys['space'] && currentNitroFuel > 0) {
+        isNitroActive = true;
+        currentNitroFuel -= 0.6; 
+        bike.vx += Math.cos(bike.angle) * 0.32;
+        bike.vy += Math.sin(bike.angle) * 0.32;
+    } else {
+        if(currentNitroFuel < maxNitro) currentNitroFuel += 0.05;
+    }
+
+    if (keys['w'] || keys['ArrowUp']) {
+        bike.vx += Math.cos(bike.angle) * motorPower;
+        bike.vy += Math.sin(bike.angle) * motorPower;
+    }
+    if (keys['s'] || keys['ArrowDown']) {
+        bike.vx *= 0.92; 
+    }
+    if (keys['a'] || keys['ArrowLeft']) bike.angularVelocity -= airLeanSpeed;
+    if (keys['d'] || keys['ArrowRight']) bike.angularVelocity += airLeanSpeed;
+
+    bike.x += bike.vx;
+    bike.y += bike.vy;
+    bike.angle += bike.angularVelocity;
+
+    bike.vx *= 0.992; bike.vy *= 0.992; bike.angularVelocity *= 0.92;
+
+    let cosA = Math.cos(bike.angle);
+    let sinA = Math.sin(bike.angle);
+    let fX = bike.x + cosA * bike.frontOffset;
+    let fY = bike.y + sinA * bike.frontOffset + bike.radius;
+    let bX = bike.x + cosA * bike.backOffset;
+    let bY = bike.y + sinA * bike.backOffset + bike.radius;
+
+    let fGroundY = getTerrainHeight(fX);
+    let bGroundY = getTerrainHeight(bX);
+
+    let fGrounded = fY >= fGroundY;
+    let bGrounded = bY >= bGroundY;
+
+    if (fGrounded) {
+        bike.y -= (fY - fGroundY) * compressionCushion;
+        bike.vy *= 0.22;
+        bike.angularVelocity -= (fY - fGroundY) * 0.0035;
+    }
+    if (bGrounded) {
+        bike.y -= (bY - bGroundY) * compressionCushion;
+        bike.vy *= 0.22;
+        bike.angularVelocity += (bY - bGroundY) * 0.0035;
+        if (keys['w'] || keys['ArrowUp']) bike.vx += groundTraction; 
+    }
+
+    if (!fGrounded && !bGrounded) {
+        if (bike.grounded) {
+            bike.grounded = false;
+            absoluteRotationAccumulator = 0;
+            airRotationCheckpoint = bike.angle;
+            flipsCompletedInCurrentJump = 0;
+        }
+        
+        airTime += 1/60;
+        if (airTime > 0.4) score += 2;
+
+        let diff = bike.angle - airRotationCheckpoint;
+        absoluteRotationAccumulator += diff;
+        airRotationCheckpoint = bike.angle;
+
+        if (Math.abs(absoluteRotationAccumulator) >= Math.PI * 2 * (flipsCompletedInCurrentJump + 1)) {
+            flipsCompletedInCurrentJump++;
+            
+            let flipReward = 3 * Math.pow(2, flipsCompletedInCurrentJump - 1);
+            sessionCoins += flipReward;
+            score += flipReward * 120;
+            
+            currentNitroFuel = Math.min(maxNitro, currentNitroFuel + (maxNitro * 0.4));
+
+            const alertBox = document.getElementById('stuntAlert');
+            alertBox.innerText = `FLIP COMBO! +${flipReward} COINS (x${flipsCompletedInCurrentJump}) ⚡ NITRO UP!`;
+            alertBox.style.opacity = "1";
+            trickAlertTimer = 85; 
+        }
+    } else {
+        bike.grounded = true;
+        airTime = 0;
+    }
+
+    if (trickAlertTimer > 0) {
+        trickAlertTimer--;
+        if(trickAlertTimer === 0) document.getElementById('stuntAlert').style.opacity = "0";
+    }
+
+    coinsList.forEach(c => {
+        if (!c.collected && Math.hypot(bike.x - c.x, bike.y - c.y) < 36) {
+            c.collected = true;
+            sessionCoins += 1;
+            score += 100;
+        }
+    });
+
+    let terrainAngle = Math.atan2(fGroundY - bGroundY, fX - bX);
+    let relativeAngle = (bike.angle - terrainAngle) % (Math.PI * 2);
+    if (relativeAngle > Math.PI) relativeAngle -= Math.PI * 2;
+    if (relativeAngle < -Math.PI) relativeAngle += Math.PI * 2;
+
+    if ((fGrounded || bGrounded) && Math.abs(relativeAngle) > Math.PI * 0.58) {
+        gameOver = true;
+        coinsWallet += sessionCoins; 
+        sessionCoins = 0;
+        document.getElementById('stuntAlert').style.opacity = "0";
+    }
+
+    if (bike.x >= totalWidth - 200) {
+        levelCleared = true;
+        coinsWallet += sessionCoins;
+        sessionCoins = 0;
+    }
+
+    if (bike.x < 40) bike.x = 40;
+    updateHUD();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let terrainHue = (currentLevel * 17) % 360;
+    ctx.fillStyle = `hsl(${terrainHue}, 30%, 12%)`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    let camX = bike.x - 240;
+    if (camX < 0) camX = 0;
+    if (camX > totalWidth - canvas.width) camX = totalWidth - canvas.width;
+    ctx.translate(-camX, 0);
+
+    coinsList.forEach(c => {
+        if (!c.collected && c.x > camX - 50 && c.x < camX + canvas.width + 50) {
+            ctx.fillStyle = '#f59e0b'; ctx.strokeStyle = '#d97706'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.fillRect(c.x - 1, c.y - 4, 2, 8); ctx.fillRect(c.x - 4, c.y - 1, 8, 2);
+        }
+    });
+
+    ctx.fillStyle = `hsl(${terrainHue}, 40%, 22%)`;
+    ctx.strokeStyle = `hsl(${terrainHue}, 55%, 38%)`;
+    ctx.lineWidth = 6;
+    
+    ctx.beginPath();
+    ctx.moveTo(camX - 50, canvas.height);
+    let sIdx = Math.max(0, Math.floor((camX - 50) / terrainStep));
+    let eIdx = Math.min(terrainPoints.length - 1, Math.ceil((camX + canvas.width + 50) / terrainStep));
+    
+    for (let i = sIdx; i <= eIdx; i++) {
+        if (terrainPoints[i]) ctx.lineTo(terrainPoints[i].x, terrainPoints[i].y);
+    }
+    if (terrainPoints[eIdx]) ctx.lineTo(terrainPoints[eIdx].x, canvas.height);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    let goalY = getTerrainHeight(totalWidth - 200);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(totalWidth - 200, goalY - 110, 6, 110);
+    ctx.fillStyle = '#111827'; ctx.fillRect(totalWidth - 200, goalY - 110, 32, 24);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 9px sans-serif';
+    ctx.fillText("FINISH", totalWidth - 197, goalY - 96);
+
+    if (isNitroActive) {
+        ctx.fillStyle = '#ef4444';
+        for(let f=0; f<5; f++) {
+            ctx.beginPath();
+            ctx.arc(bike.x - Math.cos(bike.angle)*28 + (Math.random()*8-4), bike.y - Math.sin(bike.angle)*8 + (Math.random()*8-4), 5 + Math.random()*6, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    let skinColor = skins[activeSkinIndex].color;
+    let cosA = Math.cos(bike.angle);
+    let sinA = Math.sin(bike.angle);
+
+    ctx.save();
+    ctx.translate(bike.x, bike.y);
+    ctx.rotate(bike.angle);
+
+    ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(bike.frontOffset, 0); ctx.stroke();
+    ctx.fillStyle = '#374151'; ctx.fillRect(-8, -9, 16, 12);
+    ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-16, -11); ctx.lineTo(bike.backOffset + 5, -7); ctx.stroke();
+
+    ctx.strokeStyle = skinColor; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(bike.backOffset, 0); ctx.lineTo(-6, -18); ctx.lineTo(bike.frontOffset - 4, -20); ctx.stroke();
+
+    ctx.fillStyle = skinColor;
+    ctx.beginPath();
+    ctx.moveTo(-25, -14); ctx.lineTo(9, -20); ctx.lineTo(16, -6); ctx.lineTo(-10, -4);
+    ctx.closePath(); ctx.fill();
+
+    ctx.strokeStyle = '#111827'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(bike.frontOffset - 4, -20); ctx.lineTo(bike.frontOffset - 6, -34); ctx.lineTo(bike.frontOffset - 15, -33); ctx.stroke();
+
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(-8, -36, 10, 18); 
+    ctx.fillStyle = skinColor;
+    ctx.beginPath(); 
+    ctx.arc(-2, -42, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#111827'; ctx.fillRect(1, -44, 4, 3); 
+    ctx.restore();
+
+    drawSpikedTire(bike.x + cosA * bike.frontOffset, bike.y + sinA * bike.frontOffset, bike.radius, bike.x);
+    drawSpikedTire(bike.x + cosA * bike.backOffset, bike.y + sinA * bike.backOffset, bike.radius, bike.x);
+
+    ctx.restore();
+
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(7,11,18,0.85)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#ef4444'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+        ctx.fillText("CRASH DETECTED!", canvas.width/2, canvas.height/2 - 20);
+        ctx.fillStyle = '#d1d5db'; ctx.font = '16px sans-serif';
+        ctx.fillText("Press 'R' to reload this stage, or 'ESC' to re-tune performance specs", canvas.width/2, canvas.height/2 + 25);
+    }
+    
+    if (levelCleared) {
+        ctx.fillStyle = 'rgba(7,11,18,0.88)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#10b981'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+        ctx.fillText("STAGE COMPLETED!", canvas.width/2, canvas.height/2 - 20);
+        ctx.fillStyle = '#d1d5db'; ctx.font = '16px sans-serif';
+        ctx.fillText("Press 'ESC' to head back to the map board and select next run", canvas.width/2, canvas.height/2 + 25);
+    }
+}
+
+function drawSpikedTire(x, y, r, dist) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(dist / r);
+    
+    ctx.strokeStyle = '#111827'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.stroke();
+    
+    ctx.fillStyle = '#111827';
+    for (let i = 0; i < 8; i++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(r - 2, -2, 4, 4);
+    }
+    
+    ctx.strokeStyle = '#6b7280'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-r+2,0); ctx.lineTo(r-2,0); ctx.moveTo(0,-r+2); ctx.lineTo(0,r-2); ctx.stroke();
+    ctx.restore();
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+generateTrack(1);
+updateShopUI();
+loop();
+</script>
+
+</body>
+</html>
