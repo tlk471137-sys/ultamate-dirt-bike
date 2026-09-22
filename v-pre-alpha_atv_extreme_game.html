@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATV Wheeler Extreme</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0b0f19;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
+
+        #game-container {
+            width: 800px;
+            height: 500px;
+            background: #111625;
+            border: 4px solid #00f2fe;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 242, 254, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .menu-screen {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #111625;
+            box-sizing: border-box;
+            padding: 30px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 52px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: #ffd700;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+
+        h2 {
+            font-size: 32px;
+            margin: 0 0 20px 0;
+            color: #00f2fe;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #00f2fe, #4e34e1);
+            color: white;
+            border: none;
+            padding: 16px 45px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            margin: 12px;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 8px 20px rgba(0, 242, 254, 0.4);
+        }
+
+        .wallet-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 24px;
+            border-radius: 20px;
+            border: 2px solid #ffd700;
+            margin-bottom: 25px;
+        }
+
+        .level-grid {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .level-card {
+            width: 130px;
+            height: 130px;
+            background: #1c233a;
+            border: 3px solid #00f2fe;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 20px;
+            transition: background 0.2s;
+        }
+
+        .level-card.locked {
+            opacity: 0.25;
+            cursor: not-allowed;
+            border-color: #444;
+        }
+
+        .level-card:not(.locked):hover {
+            background: #00f2fe;
+            color: #111625;
+        }
+
+        .shop-wrapper {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .shop-panel {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 12px;
+            width: 50%;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.4);
+            padding: 12px 16px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+
+        .upgrade-name {
+            font-weight: bold;
+            font-size: 15px;
+            display: block;
+        }
+
+        .upgrade-level {
+            font-size: 13px;
+            color: #00f2fe;
+        }
+
+        .shop-btn {
+            background: #21bf73;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .shop-btn.maxed {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .color-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            border: 2px solid #fff;
+            vertical-align: middle;
+        }
+
+        #gameplay-area {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: linear-gradient(to bottom, #0b0f19, #1b233d);
+        }
+
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-weight: bold;
+            font-size: 19px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            z-index: 100;
+        }
+
+        .hint {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: #00f2fe;
+            background: rgba(11, 15, 25, 0.8);
+            padding: 6px 18px;
+            border-radius: 20px;
+            pointer-events: none;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+
+        <!-- MAIN MENU -->
+        <div id="screen-main" class="menu-screen">
+            <h1>ATV Extreme</h1>
+            <p style="color: #7e8bba; margin-top: 0; margin-bottom: 30px;">Throttle hard, catch big air, conquer peaks</p>
+            <div id="main-wallet" class="wallet-display">Coins: 0</div>
+            <button class="btn" onclick="showScreen('level')">Race Levels</button>
+            <button class="btn" onclick="showScreen('shop')">ATV Upgrades Shop</button>
+        </div>
+
+        <!-- LEVEL SELECT -->
+        <div id="screen-level" class="menu-screen hidden">
+            <h2>Select Track</h2>
+            <div id="level-wallet" class="wallet-display">Coins: 0</div>
+            <div class="level-grid" id="level-grid-container"></div>
+            <button class="btn" onclick="showScreen('main')">Back</button>
+        </div>
+
+        <!-- GARAGE SHOP -->
+        <div id="screen-shop" class="menu-screen hidden">
+            <h2>Garage & Upgrades</h2>
+            <div id="shop-wallet" class="wallet-display">Coins: 0</div>
+            
+            <div class="shop-wrapper">
+                <div class="shop-panel">
+                    <h3 style="margin-top:0; color:#ffd700; font-size:18px;">ATV Mechanics</h3>
+                    <div class="shop-item">
+                        <div>
+                            <span class="upgrade-name">Engine Horsepower</span>
+                            <span class="upgrade-level" id="lbl-speed">Lvl 1/5</span>
+                        </div>
+                        <button class="shop-btn" id="btn-speed" onclick="triggerUpgrade('speed')">$100</button>
+                    </div>
+                    <div class="shop-item">
+                        <div>
+                            <span class="upgrade-name">Suspension Spring</span>
+                            <span class="upgrade-level" id="lbl-grip">Lvl 1/5</span>
+                        </div>
+                        <button class="shop-btn" id="btn-grip" onclick="triggerUpgrade('grip')">$120</button>
+                    </div>
+                </div>
+
+                <div class="shop-panel">
+                    <h3 style="margin-top:0; color:#00f2fe; font-size:18px;">Rider Visuals</h3>
+                    <div class="shop-item">
+                        <div>
+                            <span class="color-dot" style="background:#ffd700;"></span>
+                            <span class="upgrade-name" style="display:inline;">Racing Yellow</span>
+                        </div>
+                        <button class="shop-btn" id="skin-btn-yellow" onclick="setSkin('yellow')">Active</button>
+                    </div>
+                    <div class="shop-item">
+                        <div>
+                            <span class="color-dot" style="background:#e94560;"></span>
+                            <span class="upgrade-name" style="display:inline;">Nitro Crimson</span>
+                        </div>
+                        <button class="shop-btn" id="skin-btn-crimson" onclick="buySkin('crimson', 150)">$150</button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="showScreen('main')">Back</button>
+        </div>
+
+        <!-- END GAME RESULTS -->
+        <div id="screen-end" class="menu-screen hidden">
+            <h1 id="end-title">Race Complete</h1>
+            <p id="end-info" style="font-size: 22px; color: #ffd700; margin-bottom: 30px;"></p>
+            <button class="btn" onclick="showScreen('level')">Tracks</button>
+            <button class="btn" id="btn-retry-run">Retry Track</button>
+        </div>
+
+        <!-- ACTIVE CANVAS DRIVE VIEWPORT -->
+        <div id="gameplay-area" class="hidden">
+            <div id="hud">
+                <div>Track: <span id="hud-stage">1</span></div>
+                <div style="color:#ffd700;">Coins: <span id="hud-gold">0</span></div>
+                <div>Speed: <span id="hud-speed-val">0</span> MPH</div>
+                <div>Goal: <span id="hud-meters">0</span> / <span id="hud-goal">0</span>m</div>
+            </div>
+            <div class="hint">Hold Space, Right Arrow, or Click & Hold Screen to Hit the Throttle!</div>
+            <canvas id="gameCanvas" width="800" height="500"></canvas>
+        </div>
+
+    <script>
+        let saveState = {
+            coins: 200, 
+            unlockedLevel: 1,
+            upgrades: { speed: 1, grip: 1 },
+            unlockedSkins: { yellow: true, crimson: false },
+            activeSkin: 'yellow'
+        };
+
+        const costMatrix = {
+            speed: [100, 200, 350, 500, 'MAX'],
+            grip: [120, 220, 300, 450, 'MAX']
+        };
+
+        const skinPalette = {
+            yellow: '#ffd700',
+            crimson: '#e94560'
+        };
+
+        const levelData = [
+            { id: 1, distance: 1500, hillFreq: 0.005, hillAmp: 45, bgGrad: ['#0f172a', '#1e293b'] },
+            { id: 2, distance: 2200, hillFreq: 0.007, hillAmp: 75, bgGrad: ['#1e1b4b', '#311042'] },
+            { id: 3, distance: 3500, hillFreq: 0.010, hillAmp: 110, bgGrad: ['#2e1022', '#0f172a'] }
+        ];
+
+        let chosenLevel = null;
+        let isSimulating = false;
+
+        let vehicle = { 
+            x: 100, y: 0, 
+            vx: 0, vy: 0, 
+            chassisWidth: 55, 
+            chassisHeight: 18,
+            wheelRadius: 14, 
+            rot: 0, rotSpeed: 0 
+        };
+        
+        let cameraX = 0;
+        let mapCoins = [];
+        let sessionCoins = 0;
+
+        let inputKeys = {};
+        let mousePressed = false;
+
+        window.addEventListener('keydown', (e) => inputKeys[e.code] = true);
+        window.addEventListener('keyup', (e) => inputKeys[e.code] = false);
+
+        const surfaceCanvas = document.getElementById('gameCanvas');
+        const drawContext = surfaceCanvas.getContext('2d');
+
+        surfaceCanvas.addEventListener('mousedown', () => mousePressed = true);
+        surfaceCanvas.addEventListener('mouseup', () => mousePressed = false);
+        surfaceCanvas.addEventListener('touchstart', (e) => { mousePressed = true; e.preventDefault(); }, {passive:false});
+        surfaceCanvas.addEventListener('touchend', () => mousePressed = false);
+
+        function showScreen(type) {
+            isSimulating = false;
+
+            document.getElementById('screen-main').classList.add('hidden');
+            document.getElementById('screen-level').classList.add('hidden');
+            document.getElementById('screen-shop').classList.add('hidden');
+            document.getElementById('screen-end').classList.add('hidden');
+            document.getElementById('gameplay-area').classList.add('hidden');
+
+            if (type === 'game') {
+                document.getElementById('gameplay-area').classList.remove('hidden');
+                isSimulating = true;
+            } else {
+                document.getElementById('screen-' + type).classList.remove('hidden');
+                refreshDisplays();
+            }
+        }
+
+        function refreshDisplays() {
+            document.getElementById('main-wallet').innerText = "Coins: " + saveState.coins;
+            document.getElementById('level-wallet').innerText = "Coins: " + saveState.coins;
+            document.getElementById('shop-wallet').innerText = "Coins: " + saveState.coins;
+
+            const grid = document.getElementById('level-grid-container');
+            grid.innerHTML = '';
+            levelData.forEach(lvl => {
+                const locked = lvl.id > saveState.unlockedLevel;
+                const element = document.createElement('div');
+                element.className = "level-card" + (locked ? " locked" : "");
+                element.innerHTML = `<div>Track ${lvl.id}</div><div style="font-size:13px;color:#00f2fe;margin-top:8px;">${lvl.distance}m</div>`;
+                
+                if (!locked) {
+                    element.onclick = () => launchLevelInstance(lvl);
+                }
+                grid.appendChild(element);
+            });
+
+            ['speed', 'grip'].forEach(prop => {
+                const currentLevel = saveState.upgrades[prop];
+                document.getElementById(`lbl-${prop}`).innerText = `Lvl ${currentLevel}/5`;
+                const cost = costMatrix[prop][currentLevel - 1];
+                const btn = document.getElementById(`btn-${prop}`);
+                
+                if (cost === 'MAX') {
+                    btn.innerText = 'MAX';
+                    btn.className = 'shop-btn maxed';
+                } else {
+                    btn.innerText = `$${cost}`;
+                    btn.className = 'shop-btn';
+                }
+            });
+
+            Object.keys(skinPalette).forEach(skinKey => {
+                const button = document.getElementById(`skin-btn-${skinKey}`);
+                if (!button) return;
+
+                if (saveState.activeSkin === skinKey) {
+                    button.innerText = "Active";
+                    button.style.background = "#00f2fe";
+                    button.style.color = "#111625";
+                } else if (saveState.unlockedSkins[skinKey]) {
+                    button.innerText = "Equip";
+                    button.style.background = "#21bf73";
+                    button.style.color = "#fff";
+                    button.onclick = () => setSkin(skinKey);
+                } else {
+                    button.style.background = "#e94560";
+                    button.style.color = "#fff";
+                }
+            });
+        }
+
+        function triggerUpgrade(property) {
+            let currentLvl = saveState.upgrades[property];
+            if (currentLvl >= 5) return;
+            let needed = costMatrix[property][currentLvl - 1];
+
+            if (saveState.coins >= needed) {
+                saveState.coins -= needed;
+                saveState.upgrades[property]++;
+                refreshDisplays();
+            } else {
+                alert("Collect more coins on tracks to buy this performance part!");
+            }
+        }
+
+        function buySkin(name, rate) {
+            if (saveState.unlockedSkins[name]) return;
+            if (saveState.coins >= rate) {
+                saveState.coins -= rate;
+                saveState.unlockedSkins[name] = true;
+                saveState.activeSkin = name;
+                refreshDisplays();
+            } else {
+                alert("Insufficient coins for this suit kit.");
+            }
+        }
+
+        function setSkin(name) {
+            if (saveState.unlockedSkins[name]) {
+                saveState.activeSkin = name;
+                refreshDisplays();
+            }
+        }
+
+        function lookupGroundHeight(horizontalPos) {
+            if (!chosenLevel) return 400;
+            return 370 + Math.sin(horizontalPos * chosenLevel.hillFreq) * chosenLevel.hillAmp 
+                       + Math.sin(horizontalPos * 0.015) * 20;
+        }
+
+        function launchLevelInstance(levelProfile) {
+            chosenLevel = levelProfile;
+            sessionCoins = 0;
+            cameraX = 0;
+
+            vehicle.x = 100;
+            vehicle.vx = 0;
+            vehicle.vy = 0;
+            vehicle.rot = 0;
+            vehicle.rotSpeed = 0;
+            vehicle.y = lookupGroundHeight(vehicle.x) - 30;
+
+            mapCoins = [];
+            for (let pos = 300; pos < levelProfile.distance - 60; pos += 75) {
+                if (Math.random() < 0.5) {
+                    mapCoins.push({ x: pos, y: lookupGroundHeight(pos) - 35, visible: true });
+                }
+            }
+
+            document.getElementById('hud-stage').innerText = levelProfile.id;
+            document.getElementById('hud-goal').innerText = levelProfile.distance;
+            document.getElementById('btn-retry-run').onclick = () => launchLevelInstance(levelProfile);
+
+            showScreen('game');
+        }
+
+        function iteratePhysicsLoop() {
+            let forwardPower = 0.35 + (saveState.upgrades.speed * 0.12);
+            let gripFactor = 0.93 + (saveState.upgrades.grip * 0.012);
+            let gravity = 0.42;
+
+            let groundLevel = lookupGroundHeight(vehicle.x);
+            let onGround = vehicle.y >= groundLevel - vehicle.wheelRadius - 10;
+
+            let commandThrottle = inputKeys['ArrowRight'] || inputKeys['KeyD'] || inputKeys['Space'] || mousePressed;
+            let commandBrake = inputKeys['ArrowLeft'] || inputKeys['KeyA'];
+
+            if (commandThrottle) {
+                if (onGround) {
+                    vehicle.vx += forwardPower;
+                    vehicle.rotSpeed += 0.006;
+                } else {
+                    vehicle.rotSpeed += 0.003;
+                }
+            }
+            if (commandBrake) {
+                if (onGround) {
+                    vehicle.vx -= forwardPower * 0.5;
+                    vehicle.rotSpeed -= 0.006;
+                } else {
+                    vehicle.rotSpeed -= 0.004;
+                }
+            }
+
+            vehicle.vy += gravity;
+            vehicle.x += vehicle.vx;
+            vehicle.y += vehicle.vy;
+
+            groundLevel = lookupGroundHeight(vehicle.x);
+            if (vehicle.y >= groundLevel - vehicle.wheelRadius - 6) {
+                vehicle.y = groundLevel - vehicle.wheelRadius - 6;
+                vehicle.vx *= gripFactor; 
+                vehicle.vy = 0;
+
+                let sampleNext = lookupGroundHeight(vehicle.x + 10);
+                let targetAngle = Math.atan2(sampleNext - groundLevel, 10);
+                vehicle.rot += (targetAngle - vehicle.rot) * 0.35;
+                vehicle.rotSpeed *= 0.5;
+            } else {
+                vehicle.rot += vehicle.rotSpeed;
+                vehicle.rotSpeed *= 0.98;
+            }
+
+            vehicle.vx *= 0.992;
+
+            if (vehicle.x < 30) {
+                vehicle.x = 30;
+                vehicle.vx = 0;
+            }
+
+            mapCoins.forEach(coin => {
+                if (coin.visible) {
+                    let distanceCheck = Math.hypot(vehicle.x - coin.x, vehicle.y - coin.y);
+                    if (distanceCheck < vehicle.chassisWidth) {
+                        coin.visible = false;
+                        sessionCoins++;
+                        saveState.coins++;
+                    }
+                }
+            });
+
+            cameraX = vehicle.x - 180;
+
+            let currentMPH = Math.max(0, Math.floor(vehicle.vx * 3.8));
+            document.getElementById('hud-gold').innerText = sessionCoins;
+            document.getElementById('hud-speed-val').innerText = currentMPH;
+            document.getElementById('hud-meters').innerText = Math.floor(vehicle.x);
+
+            if (vehicle.x >= chosenLevel.distance) {
+                concludeInstance(true);
+            } else if (vehicle.y > surfaceCanvas.height + 180) {
+                concludeInstance(false);
+            }
+        }
+
+        function concludeInstance(reachedTarget) {
+            isSimulating = false;
+            document.getElementById('gameplay-area').classList.add('hidden');
+
+            const heading = document.getElementById('end-title');
+            const detailText = document.getElementById('end-info');
+
+            if (reachedTarget) {
+                heading.innerText = "Track Dominated!";
+                heading.style.color = "#00f2fe";
+                detailText.innerText = `Looted +${sessionCoins} Coins from this run!`;
+                if (chosenLevel.id === saveState.unlockedLevel && saveState.unlockedLevel < levelData.length) {
+                    saveState.unlockedLevel++;
+                }
+            } else {
+                heading.innerText = "Wrecked Out!";
+                heading.style.color = "#e94560";
+                detailText.innerText = `Banked ${sessionCoins} coins before crashing into abyss.`;
+            }
+
+            showScreen('end');
+        }
+
+        function performFrameDraw() {
+            if (!chosenLevel) return;
+
+            let skyGrad = drawContext.createLinearGradient(0, 0, 0, surfaceCanvas.height);
+            skyGrad.addColorStop(0, chosenLevel.bgGrad[0]);
+            skyGrad.addColorStop(1, chosenLevel.bgGrad[1]);
+            drawContext.fillStyle = skyGrad;
+            drawContext.fillRect(0, 0, surfaceCanvas.width, surfaceCanvas.height);
+
+            drawContext.save();
+            drawContext.translate(-cameraX, 0);
+
+            drawContext.beginPath();
+            drawContext.moveTo(cameraX - 40, surfaceCanvas.height);
+            for (let horizontal = cameraX - 40; horizontal < cameraX + surfaceCanvas.width + 80; horizontal += 10) {
+                drawContext.lineTo(horizontal, lookupGroundHeight(horizontal));
+            }
+            drawContext.lineTo(cameraX + surfaceCanvas.width + 80, surfaceCanvas.height);
+            drawContext.closePath();
+            drawContext.fillStyle = '#171d31';
+            drawContext.fill();
+
+            drawContext.beginPath();
+            let startingLine = true;
+            for (let horizontal = cameraX - 40; horizontal < cameraX + surfaceCanvas.width + 80; horizontal += 10) {
+                if (startingLine) {
+                    drawContext.moveTo(horizontal, lookupGroundHeight(horizontal));
+                    startingLine = false;
+                } else {
+                    drawContext.lineTo(horizontal, lookupGroundHeight(horizontal));
+                }
+            }
+            drawContext.strokeStyle = '#00f2fe';
+            drawContext.lineWidth = 4;
+            drawContext.stroke();
+
+            let goalY = lookupGroundHeight(chosenLevel.distance);
+            drawContext.fillStyle = '#e94560';
+            drawContext.fillRect(chosenLevel.distance, goalY - 140, 6, 140);
+            drawContext.beginPath();
+            drawContext.moveTo(chosenLevel.distance + 6, goalY - 140);
+            drawContext.lineTo(chosenLevel.distance + 50, goalY - 115);
+            drawContext.lineTo(chosenLevel.distance + 6, goalY - 90);
+            drawContext.closePath();
+            drawContext.fillStyle = '#ffd700';
+            drawContext.fill();
+
+            mapCoins.forEach(coin => {
+                if (coin.visible && coin.x > cameraX - 30 && coin.x < cameraX + surfaceCanvas.width + 30) {
+                    drawContext.beginPath();
+                    drawContext.arc(coin.x, coin.y, 9, 0, Math.PI * 2);
+                    drawContext.fillStyle = '#ffd700';
+                    drawContext.fill();
+                    drawContext.strokeStyle = '#ffffff';
+                    drawContext.lineWidth = 1.5;
+                    drawContext.stroke();
+                }
+            });
+
+            drawContext.save();
+            drawContext.translate(vehicle.x, vehicle.y);
+            drawContext.rotate(vehicle.rot);
+
+            let primaryColor = skinPalette[saveState.activeSkin];
+
+            drawContext.strokeStyle = '#6e7a9f';
+            drawContext.lineWidth = 4;
+            drawContext.beginPath();
+            drawContext.moveTo(-20, 0); drawContext.lineTo(-24, 14); 
+            drawContext.moveTo(20, 0); drawContext.lineTo(24, 14);   
+            drawContext.stroke();
+
+            [-24, 24].forEach(wheelOffset => {
+                drawContext.save();
+                drawContext.translate(wheelOffset, 14);
+                drawContext.rotate(vehicle.x * 0.05); 
+
+                drawContext.beginPath();
+                drawContext.arc(0, 0, vehicle.wheelRadius, 0, Math.PI * 2);
+                drawContext.fillStyle = '#090b11';
+                drawContext.fill();
+                drawContext.strokeStyle = '#2c354a';
+                drawContext.lineWidth = 4;
+                drawContext.stroke();
+
+                drawContext.beginPath();
+                drawContext.arc(0, 0, 6, 0, Math.PI * 2);
+                drawContext.fillStyle = primaryColor;
+                drawContext.fill();
+
+                drawContext.strokeStyle = '#fff';
+                drawContext.lineWidth = 2;
+                drawContext.beginPath();
+                drawContext.moveTo(-5, 0); drawContext.lineTo(5, 0);
+                drawContext.moveTo(0, -5); drawContext.lineTo(0, 5);
+                drawContext.stroke();
+
+                drawContext.restore();
+            });
+
+            drawContext.fillStyle = primaryColor;
+            drawContext.beginPath();
+            drawContext.moveTo(-28, -6);
+            drawContext.lineTo(28, -6);
+            drawContext.lineTo(22, 4);
+            drawContext.lineTo(-22, 4);
+            drawContext.closePath();
+            drawContext.fill();
+
+            drawContext.fillStyle = '#1c2235';
+            drawContext.fillRect(-15, -4, 30, 8);
+            
+            drawContext.strokeStyle = '#475275';
+            drawContext.lineWidth = 3;
+            drawContext.beginPath();
+            drawContext.moveTo(28, -6); drawContext.lineTo(34, -14); drawContext.lineTo(25, -2);
+            drawContext.stroke();
+
+            drawContext.strokeStyle = '#ffffff';
+            drawContext.lineWidth = 3;
+            drawContext.beginPath();
+            drawContext.moveTo(14, -6); drawContext.lineTo(8, -24); 
+            drawContext.lineTo(2, -22); 
+            drawContext.stroke();
+
+            drawContext.fillStyle = '#ffffff'; 
+            
+            let hipX = -10, hipY = -8;
+            let shoulderX = -2, shoulderY = -28;
+            let headX = 2, headY = -38;
+
+            drawContext.strokeStyle = '#ffffff';
+            drawContext.lineWidth = 7;
+            drawContext.beginPath();
+            drawContext.moveTo(hipX, hipY);
+            drawContext.lineTo(shoulderX, shoulderY);
+            drawContext.stroke();
+
+            drawContext.beginPath();
+            drawContext.arc(headX, headY, 6, 0, Math.PI * 2);
+            drawContext.fillStyle = primaryColor;
+            drawContext.fill();
+            drawContext.strokeStyle = '#fff';
+            drawContext.lineWidth = 1.5;
+            drawContext.stroke();
+
+            drawContext.fillStyle = '#111625';
+            drawContext.beginPath();
+            drawContext.arc(headX + 2, headY, 3, -Math.PI/3, Math.PI/3);
+            drawContext.fill();
+
+            drawContext.strokeStyle = primaryColor;
+            drawContext.lineWidth = 4;
+            drawContext.beginPath();
+            drawContext.moveTo(shoulderX, shoulderY);
+            drawContext.lineTo(6, -23); 
+            drawContext.stroke();
+
+            drawContext.strokeStyle = '#2c354a';
+            drawContext.lineWidth = 4.5;
+            drawContext.beginPath();
+            drawContext.moveTo(hipX, hipY);
+            drawContext.lineTo(-4, 0);   
+            drawContext.lineTo(-10, 2);  
+            drawContext.stroke();
+
+            drawContext.restore();
+            drawContext.restore();
+        }
+
+        function masterHeartbeatLoop() {
+            if (isSimulating) {
+                iteratePhysicsLoop();
+            }
+            performFrameDraw();
+            requestAnimationFrame(masterHeartbeatLoop);
+        }
+
+        refreshDisplays();
+        requestAnimationFrame(masterHeartbeatLoop);
+    </script>
+</body>
+</html>
